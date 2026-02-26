@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.env
+output/graphs/*.png
+output/reports/*.pdf
+output/reports/*.aux
+output/reports/*.log
+output/reports/*.out
+*.synctex.gz
