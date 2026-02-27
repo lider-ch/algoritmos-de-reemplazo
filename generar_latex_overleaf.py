@@ -8,6 +8,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.simulator import run_single
 
+def pct(value):
+    """Format float as LaTeX-safe percentage string."""
+    return f"{value:.2%}".replace("%", r"\%")
+
 REF    = [1, 3, 4, 2, 3, 6, 5, 6, 2, 3, 7, 8, 4]
 FRAMES = 4
 NOW    = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -144,9 +148,9 @@ def metrics_table(r):
         row("Aciertos de pagina",
             r"\textcolor{hitcol}{\textbf{" + str(r.page_hits) + "}}"),
         row("Hit ratio",
-            r"\textcolor{hitcol}{" + f"{r.hit_ratio:.2%}" + "}"),
+            r"\textcolor{hitcol}{" + pct(r.hit_ratio) + "}"),
         row("Fault ratio",
-            r"\textcolor{faultcol}{" + f"{r.fault_ratio:.2%}" + "}"),
+            r"\textcolor{faultcol}{" + pct(r.fault_ratio) + "}"),
         r"\hline",
         r"\end{tabular}",
         r"\end{center}",
@@ -232,9 +236,9 @@ def comparison_table(results):
         else:
             fstr = str(r.page_faults)
         lines.append(
-            f"  {key} & {fstr} & {r.page_hits} & {r.hit_ratio:.2%} & "
+            f"  {key} & {fstr} & {r.page_hits} & {pct(r.hit_ratio)} & "
             f"{r.system_calls} & {r.interrupts} & "
-            f"{r.execution_time_us:.3f} & {r.memory_used_kb:.1f} \\\\"
+            f"{r.execution_time_us:.3f} & {r.memory_used_kb:.1f} \\\\\n  \\hline"
         )
         lines.append(r"  \hline")
     lines += [r"\end{tabular}", r"\end{center}"]
@@ -311,11 +315,11 @@ best_keys   = [k for k in ALGO_ORDER if results[k].page_faults == best_fault]
 best_str    = ", ".join(best_keys)
 
 # Pre-compute percentage strings (avoid :.2\% inside f-string)
-lru_hit_pct   = f"{results['LRU'].hit_ratio:.2%}"
-fifo_hit_pct  = f"{results['FIFO'].hit_ratio:.2%}"
-opt_hit_pct   = f"{results['OPT'].hit_ratio:.2%}"
-clock_hit_pct = f"{results['Clock'].hit_ratio:.2%}"
-lfu_hit_pct   = f"{results['LFU'].hit_ratio:.2%}"
+lru_hit_pct   = pct(results['LRU'].hit_ratio)
+fifo_hit_pct  = pct(results['FIFO'].hit_ratio)
+opt_hit_pct   = pct(results['OPT'].hit_ratio)
+clock_hit_pct = pct(results['Clock'].hit_ratio)
+lfu_hit_pct   = pct(results['LFU'].hit_ratio)
 fifo_flt      = results['FIFO'].page_faults
 lru_flt       = results['LRU'].page_faults
 opt_flt       = results['OPT'].page_faults
@@ -328,7 +332,7 @@ doc = rf"""\documentclass[12pt,a4paper]{{article}}
 \usepackage[T1]{{fontenc}}
 \usepackage[spanish]{{babel}}
 \usepackage{{geometry}}
-\geometry{{margin=2.5cm}}
+\geometry{{margin=2.5cm, headheight=15pt, top=3cm}}
 \usepackage{{xcolor}}
 \usepackage{{colortbl}}
 \usepackage{{array}}
