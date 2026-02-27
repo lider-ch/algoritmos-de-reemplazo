@@ -1,0 +1,726 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{array}
+\usepackage{float}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{tikz}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+
+%% Colores principales
+\definecolor{faultcol}{RGB}{231,76,60}
+\definecolor{hitcol}{RGB}{46,204,113}
+\definecolor{accentcol}{RGB}{52,152,219}
+%% Colores de paginas
+\definecolor{pA}{RGB}{231,76,60}
+\definecolor{pB}{RGB}{52,152,219}
+\definecolor{pC}{RGB}{46,204,113}
+\definecolor{pD}{RGB}{241,196,15}
+\definecolor{pE}{RGB}{155,89,182}
+\definecolor{pF}{RGB}{26,188,156}
+\definecolor{pG}{RGB}{230,126,34}
+\definecolor{pH}{RGB}{233,30,99}
+\definecolor{pI}{RGB}{0,188,212}
+\definecolor{pJ}{RGB}{205,220,57}
+
+%% Encabezado
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Reemplazo de Paginas}
+\lhead{\leftmark}
+\cfoot{Pagina \thepage}
+
+\title{\Huge\textbf{Informe de Simulacion}\\[0.8em]
+\large Algoritmos de Reemplazo de Paginas\\en Memoria Virtual}
+\author{Simulador PaginacionMemoria\\
+\small\url{https://github.com/lider-ch/algoritmos-de-reemplazo}}
+\date{2026-02-27}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+%% ============================================================
+\section{Introduccion}
+
+Este informe documenta la simulacion de cinco algoritmos clasicos de
+reemplazo de paginas aplicados sobre una misma cadena de referencia con
+un numero fijo de marcos de memoria.
+
+\subsection*{Parametros de simulacion}
+\begin{center}
+\begin{tabular}{|l|c|}
+\hline
+\rowcolor{accentcol!25}
+\textbf{Parametro} & \textbf{Valor} \\
+\hline
+Numero de marcos de pagina & \textbf{4} \\
+Longitud de la cadena de referencia & \textbf{13} \\
+Paginas distintas en la cadena & \textbf{8} \\
+Memoria asignada & \textbf{16,384 bytes (16~KB)} \\
+Tamano de pagina & 4\,096 bytes (4~KB) \\
+Cadena de referencia & $\langle\;1\ 3\ 4\ 2\ 3\ 6\ 5\ 6\ 2\ 3\ 7\ 8\ 4\;\rangle$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection*{Metricas registradas}
+\begin{enumerate}
+  \item \textbf{Recursos utilizados}: marcos, tamano de pagina (4~KB), memoria total.
+  \item \textbf{Tiempo de ejecucion}: cronometrado con \texttt{time.perf\_counter\_ns()}
+        (resolucion de nanosegundos).
+  \item \textbf{Llamadas al sistema}: \texttt{handle\_page\_fault()} se invoca
+        en cada fallo de pagina (simulada).
+  \item \textbf{Interrupciones}: interrupcion de hardware \textbf{\#14 Page Fault (x86)}
+        generada en cada fallo (simulada).
+  \item \textbf{Tabla y grafica de reemplazo}: estado de los marcos en cada paso.
+\end{enumerate}
+
+\subsection*{Leyenda de tablas}
+\begin{itemize}
+  \item \textcolor{faultcol}{\textbf{F}}~=~Fallo de pagina\quad
+        \textcolor{hitcol}{\textbf{H}}~=~Acierto\quad
+        Celda coloreada~=~pagina almacenada en el marco
+  \item Encabezado \colorbox{faultcol!50}{rojo}~=~fallo;
+        \colorbox{hitcol!40}{verde}~=~acierto
+  \item \texttt{->V} en fila F/H indica la pagina victima desalojada
+\end{itemize}
+
+
+\newpage
+\section{FIFO -- First In, First Out}
+
+Reemplaza la pagina mas antigua segun orden de llegada. Es el algoritmo mas simple pero puede sufrir la Anomalia de Belady.
+
+\subsection{Tabla de Reemplazo}
+\textbf{Cadena:} $\langle\;1\ 3\ 4\ 2\ 3\ 6\ 5\ 6\ 2\ 3\ 7\ 8\ 4\;\rangle$\quad\textbf{Marcos:} 4
+\medskip
+\begin{center}
+\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{|l|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|}
+\hline
+\textbf{Ref} & \cellcolor{faultcol!50}\textbf{1} & \cellcolor{faultcol!50}\textbf{3} & \cellcolor{faultcol!50}\textbf{4} & \cellcolor{faultcol!50}\textbf{2} & \cellcolor{hitcol!40}\textbf{3} & \cellcolor{faultcol!50}\textbf{6} & \cellcolor{faultcol!50}\textbf{5} & \cellcolor{hitcol!40}\textbf{6} & \cellcolor{hitcol!40}\textbf{2} & \cellcolor{faultcol!50}\textbf{3} & \cellcolor{faultcol!50}\textbf{7} & \cellcolor{faultcol!50}\textbf{8} & \cellcolor{faultcol!50}\textbf{4} \\
+\hline
+M0 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pI!40}8 & \cellcolor{pI!40}8 \\
+M1 & {\color{gray!60}--} & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pE!40}4 \\
+M2 & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 \\
+M3 & {\color{gray!60}--} & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pH!40}7 & \cellcolor{pH!40}7 & \cellcolor{pH!40}7 \\
+\hline
+\textbf{F/H} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->1} & {\color{faultcol}\textbf{F}\tiny ->3} & {\color{hitcol}\textbf{H}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->4} & {\color{faultcol}\textbf{F}\tiny ->2} & {\color{faultcol}\textbf{F}\tiny ->6} & {\color{faultcol}\textbf{F}\tiny ->5} \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Metricas}
+\begin{minipage}[t]{0.50\textwidth}
+\begin{center}
+\small
+\begin{tabular}{|l|r|}
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{1.\ Recursos Utilizados}} \\
+\hline
+  Marcos de pagina & 4 \\
+  Tamano de pagina & 4\,096 bytes (4 KB) \\
+  Memoria asignada & 16,384 B (16.0 KB) \\
+  Paginas unicas & 8 \\
+  Total referencias & 13 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{2.\ Tiempo de Ejecucion}} \\
+\hline
+  Tiempo (ns) & 31,700\,ns \\
+  Tiempo ($\mu$s) & 31.700\,$\mu$s \\
+  Tiempo (ms) & 0.031700\,ms \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{3.\ Llamadas al Sistema}} \\
+\hline
+  \texttt{handle\_page\_fault()} & \textcolor{faultcol}{\textbf{10}} \\
+  Tasa syscalls/ref. & 0.7692 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{4.\ Interrupciones}} \\
+\hline
+  Interrupciones \#14 (PF x86) & \textcolor{faultcol}{\textbf{10}} \\
+  Aciertos (sin interrupcion) & \textcolor{hitcol}{\textbf{3}} \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{Resumen}} \\
+\hline
+  Fallos de pagina & \textcolor{faultcol}{\textbf{10}} \\
+  Aciertos de pagina & \textcolor{hitcol}{\textbf{3}} \\
+  Hit ratio & \textcolor{hitcol}{23.08%} \\
+  Fault ratio & \textcolor{faultcol}{76.92%} \\
+\hline
+\end{tabular}
+\end{center}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.46\textwidth}
+\vspace{0pt}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    ybar, bar width=16pt,
+    width=8cm, height=5cm,
+    symbolic x coords={Fallos,Aciertos,Syscalls,Interrups},
+    xtick=data,
+    nodes near coords,
+    nodes near coords align={vertical},
+    ylabel={Cantidad},
+    title={\small Metricas -- FIFO},
+    tick label style={font=\small},
+    enlarge x limits=0.25,
+]
+\addplot[fill=faultcol!70] coordinates {(Fallos,10) (Syscalls,10) (Interrups,10)};
+\addplot[fill=hitcol!70] coordinates {(Aciertos,3)};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+\end{minipage}
+
+\subsection{Evolucion de Fallos Acumulados}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    width=13cm, height=4.5cm,
+    xlabel={Referencia \#},
+    ylabel={Fallos acumulados},
+    title={\small Evolucion de Fallos -- FIFO},
+    grid=major, grid style={dashed,gray!40},
+    tick label style={font=\small},
+    xmin=1, xmax=13,
+    ymin=0,
+]
+\addplot[color=faultcol, thick, mark=*, mark size=1.5pt]
+    coordinates { (1,1) (2,2) (3,3) (4,4) (5,4) (6,5) (7,6) (8,6) (9,6) (10,7) (11,8) (12,9) (13,10) };
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+\newpage
+\section{LRU -- Least Recently Used}
+
+Reemplaza la pagina que no ha sido usada por mas tiempo. Aproxima el comportamiento optimo sin conocer el futuro.
+
+\subsection{Tabla de Reemplazo}
+\textbf{Cadena:} $\langle\;1\ 3\ 4\ 2\ 3\ 6\ 5\ 6\ 2\ 3\ 7\ 8\ 4\;\rangle$\quad\textbf{Marcos:} 4
+\medskip
+\begin{center}
+\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{|l|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|}
+\hline
+\textbf{Ref} & \cellcolor{faultcol!50}\textbf{1} & \cellcolor{faultcol!50}\textbf{3} & \cellcolor{faultcol!50}\textbf{4} & \cellcolor{faultcol!50}\textbf{2} & \cellcolor{hitcol!40}\textbf{3} & \cellcolor{faultcol!50}\textbf{6} & \cellcolor{faultcol!50}\textbf{5} & \cellcolor{hitcol!40}\textbf{6} & \cellcolor{hitcol!40}\textbf{2} & \cellcolor{hitcol!40}\textbf{3} & \cellcolor{faultcol!50}\textbf{7} & \cellcolor{faultcol!50}\textbf{8} & \cellcolor{faultcol!50}\textbf{4} \\
+\hline
+M0 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pI!40}8 & \cellcolor{pI!40}8 \\
+M1 & {\color{gray!60}--} & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 \\
+M2 & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pH!40}7 & \cellcolor{pH!40}7 & \cellcolor{pH!40}7 \\
+M3 & {\color{gray!60}--} & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pE!40}4 \\
+\hline
+\textbf{F/H} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->1} & {\color{faultcol}\textbf{F}\tiny ->4} & {\color{hitcol}\textbf{H}} & {\color{hitcol}\textbf{H}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->5} & {\color{faultcol}\textbf{F}\tiny ->6} & {\color{faultcol}\textbf{F}\tiny ->2} \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Metricas}
+\begin{minipage}[t]{0.50\textwidth}
+\begin{center}
+\small
+\begin{tabular}{|l|r|}
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{1.\ Recursos Utilizados}} \\
+\hline
+  Marcos de pagina & 4 \\
+  Tamano de pagina & 4\,096 bytes (4 KB) \\
+  Memoria asignada & 16,384 B (16.0 KB) \\
+  Paginas unicas & 8 \\
+  Total referencias & 13 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{2.\ Tiempo de Ejecucion}} \\
+\hline
+  Tiempo (ns) & 27,600\,ns \\
+  Tiempo ($\mu$s) & 27.600\,$\mu$s \\
+  Tiempo (ms) & 0.027600\,ms \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{3.\ Llamadas al Sistema}} \\
+\hline
+  \texttt{handle\_page\_fault()} & \textcolor{faultcol}{\textbf{9}} \\
+  Tasa syscalls/ref. & 0.6923 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{4.\ Interrupciones}} \\
+\hline
+  Interrupciones \#14 (PF x86) & \textcolor{faultcol}{\textbf{9}} \\
+  Aciertos (sin interrupcion) & \textcolor{hitcol}{\textbf{4}} \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{Resumen}} \\
+\hline
+  Fallos de pagina & \textcolor{faultcol}{\textbf{9}} \\
+  Aciertos de pagina & \textcolor{hitcol}{\textbf{4}} \\
+  Hit ratio & \textcolor{hitcol}{30.77%} \\
+  Fault ratio & \textcolor{faultcol}{69.23%} \\
+\hline
+\end{tabular}
+\end{center}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.46\textwidth}
+\vspace{0pt}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    ybar, bar width=16pt,
+    width=8cm, height=5cm,
+    symbolic x coords={Fallos,Aciertos,Syscalls,Interrups},
+    xtick=data,
+    nodes near coords,
+    nodes near coords align={vertical},
+    ylabel={Cantidad},
+    title={\small Metricas -- LRU},
+    tick label style={font=\small},
+    enlarge x limits=0.25,
+]
+\addplot[fill=faultcol!70] coordinates {(Fallos,9) (Syscalls,9) (Interrups,9)};
+\addplot[fill=hitcol!70] coordinates {(Aciertos,4)};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+\end{minipage}
+
+\subsection{Evolucion de Fallos Acumulados}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    width=13cm, height=4.5cm,
+    xlabel={Referencia \#},
+    ylabel={Fallos acumulados},
+    title={\small Evolucion de Fallos -- LRU},
+    grid=major, grid style={dashed,gray!40},
+    tick label style={font=\small},
+    xmin=1, xmax=13,
+    ymin=0,
+]
+\addplot[color=faultcol, thick, mark=*, mark size=1.5pt]
+    coordinates { (1,1) (2,2) (3,3) (4,4) (5,4) (6,5) (7,6) (8,6) (9,6) (10,6) (11,7) (12,8) (13,9) };
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+\newpage
+\section{OPT -- Optimo (Belady)}
+
+Reemplaza la pagina cuyo proximo uso esta mas lejano en el futuro. Produce el minimo teorico de fallos; sirve como referencia comparativa.
+
+\subsection{Tabla de Reemplazo}
+\textbf{Cadena:} $\langle\;1\ 3\ 4\ 2\ 3\ 6\ 5\ 6\ 2\ 3\ 7\ 8\ 4\;\rangle$\quad\textbf{Marcos:} 4
+\medskip
+\begin{center}
+\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{|l|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|}
+\hline
+\textbf{Ref} & \cellcolor{faultcol!50}\textbf{1} & \cellcolor{faultcol!50}\textbf{3} & \cellcolor{faultcol!50}\textbf{4} & \cellcolor{faultcol!50}\textbf{2} & \cellcolor{hitcol!40}\textbf{3} & \cellcolor{faultcol!50}\textbf{6} & \cellcolor{faultcol!50}\textbf{5} & \cellcolor{hitcol!40}\textbf{6} & \cellcolor{hitcol!40}\textbf{2} & \cellcolor{hitcol!40}\textbf{3} & \cellcolor{faultcol!50}\textbf{7} & \cellcolor{faultcol!50}\textbf{8} & \cellcolor{faultcol!50}\textbf{4} \\
+\hline
+M0 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pH!40}7 & \cellcolor{pI!40}8 & \cellcolor{pE!40}4 \\
+M1 & {\color{gray!60}--} & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 \\
+M2 & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 \\
+M3 & {\color{gray!60}--} & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 \\
+\hline
+\textbf{F/H} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->1} & {\color{faultcol}\textbf{F}\tiny ->4} & {\color{hitcol}\textbf{H}} & {\color{hitcol}\textbf{H}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->6} & {\color{faultcol}\textbf{F}\tiny ->7} & {\color{faultcol}\textbf{F}\tiny ->8} \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Metricas}
+\begin{minipage}[t]{0.50\textwidth}
+\begin{center}
+\small
+\begin{tabular}{|l|r|}
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{1.\ Recursos Utilizados}} \\
+\hline
+  Marcos de pagina & 4 \\
+  Tamano de pagina & 4\,096 bytes (4 KB) \\
+  Memoria asignada & 16,384 B (16.0 KB) \\
+  Paginas unicas & 8 \\
+  Total referencias & 13 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{2.\ Tiempo de Ejecucion}} \\
+\hline
+  Tiempo (ns) & 30,700\,ns \\
+  Tiempo ($\mu$s) & 30.700\,$\mu$s \\
+  Tiempo (ms) & 0.030700\,ms \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{3.\ Llamadas al Sistema}} \\
+\hline
+  \texttt{handle\_page\_fault()} & \textcolor{faultcol}{\textbf{9}} \\
+  Tasa syscalls/ref. & 0.6923 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{4.\ Interrupciones}} \\
+\hline
+  Interrupciones \#14 (PF x86) & \textcolor{faultcol}{\textbf{9}} \\
+  Aciertos (sin interrupcion) & \textcolor{hitcol}{\textbf{4}} \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{Resumen}} \\
+\hline
+  Fallos de pagina & \textcolor{faultcol}{\textbf{9}} \\
+  Aciertos de pagina & \textcolor{hitcol}{\textbf{4}} \\
+  Hit ratio & \textcolor{hitcol}{30.77%} \\
+  Fault ratio & \textcolor{faultcol}{69.23%} \\
+\hline
+\end{tabular}
+\end{center}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.46\textwidth}
+\vspace{0pt}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    ybar, bar width=16pt,
+    width=8cm, height=5cm,
+    symbolic x coords={Fallos,Aciertos,Syscalls,Interrups},
+    xtick=data,
+    nodes near coords,
+    nodes near coords align={vertical},
+    ylabel={Cantidad},
+    title={\small Metricas -- OPT},
+    tick label style={font=\small},
+    enlarge x limits=0.25,
+]
+\addplot[fill=faultcol!70] coordinates {(Fallos,9) (Syscalls,9) (Interrups,9)};
+\addplot[fill=hitcol!70] coordinates {(Aciertos,4)};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+\end{minipage}
+
+\subsection{Evolucion de Fallos Acumulados}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    width=13cm, height=4.5cm,
+    xlabel={Referencia \#},
+    ylabel={Fallos acumulados},
+    title={\small Evolucion de Fallos -- OPT},
+    grid=major, grid style={dashed,gray!40},
+    tick label style={font=\small},
+    xmin=1, xmax=13,
+    ymin=0,
+]
+\addplot[color=faultcol, thick, mark=*, mark size=1.5pt]
+    coordinates { (1,1) (2,2) (3,3) (4,4) (5,4) (6,5) (7,6) (8,6) (9,6) (10,6) (11,7) (12,8) (13,9) };
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+\newpage
+\section{Clock -- Segunda Oportunidad}
+
+Usa un bit de referencia por marco. Si el bit es 1 se pone a 0 y se avanza; si es 0 se reemplaza. Implementacion practica de LRU (Linux kswapd).
+
+\subsection{Tabla de Reemplazo}
+\textbf{Cadena:} $\langle\;1\ 3\ 4\ 2\ 3\ 6\ 5\ 6\ 2\ 3\ 7\ 8\ 4\;\rangle$\quad\textbf{Marcos:} 4
+\medskip
+\begin{center}
+\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{|l|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|}
+\hline
+\textbf{Ref} & \cellcolor{faultcol!50}\textbf{1} & \cellcolor{faultcol!50}\textbf{3} & \cellcolor{faultcol!50}\textbf{4} & \cellcolor{faultcol!50}\textbf{2} & \cellcolor{hitcol!40}\textbf{3} & \cellcolor{faultcol!50}\textbf{6} & \cellcolor{faultcol!50}\textbf{5} & \cellcolor{hitcol!40}\textbf{6} & \cellcolor{hitcol!40}\textbf{2} & \cellcolor{faultcol!50}\textbf{3} & \cellcolor{faultcol!50}\textbf{7} & \cellcolor{faultcol!50}\textbf{8} & \cellcolor{faultcol!50}\textbf{4} \\
+\hline
+M0 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pI!40}8 & \cellcolor{pI!40}8 \\
+M1 & {\color{gray!60}--} & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pE!40}4 \\
+M2 & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 \\
+M3 & {\color{gray!60}--} & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pH!40}7 & \cellcolor{pH!40}7 & \cellcolor{pH!40}7 \\
+\hline
+\textbf{F/H} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->1} & {\color{faultcol}\textbf{F}\tiny ->3} & {\color{hitcol}\textbf{H}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->4} & {\color{faultcol}\textbf{F}\tiny ->2} & {\color{faultcol}\textbf{F}\tiny ->6} & {\color{faultcol}\textbf{F}\tiny ->5} \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Metricas}
+\begin{minipage}[t]{0.50\textwidth}
+\begin{center}
+\small
+\begin{tabular}{|l|r|}
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{1.\ Recursos Utilizados}} \\
+\hline
+  Marcos de pagina & 4 \\
+  Tamano de pagina & 4\,096 bytes (4 KB) \\
+  Memoria asignada & 16,384 B (16.0 KB) \\
+  Paginas unicas & 8 \\
+  Total referencias & 13 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{2.\ Tiempo de Ejecucion}} \\
+\hline
+  Tiempo (ns) & 25,200\,ns \\
+  Tiempo ($\mu$s) & 25.200\,$\mu$s \\
+  Tiempo (ms) & 0.025200\,ms \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{3.\ Llamadas al Sistema}} \\
+\hline
+  \texttt{handle\_page\_fault()} & \textcolor{faultcol}{\textbf{10}} \\
+  Tasa syscalls/ref. & 0.7692 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{4.\ Interrupciones}} \\
+\hline
+  Interrupciones \#14 (PF x86) & \textcolor{faultcol}{\textbf{10}} \\
+  Aciertos (sin interrupcion) & \textcolor{hitcol}{\textbf{3}} \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{Resumen}} \\
+\hline
+  Fallos de pagina & \textcolor{faultcol}{\textbf{10}} \\
+  Aciertos de pagina & \textcolor{hitcol}{\textbf{3}} \\
+  Hit ratio & \textcolor{hitcol}{23.08%} \\
+  Fault ratio & \textcolor{faultcol}{76.92%} \\
+\hline
+\end{tabular}
+\end{center}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.46\textwidth}
+\vspace{0pt}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    ybar, bar width=16pt,
+    width=8cm, height=5cm,
+    symbolic x coords={Fallos,Aciertos,Syscalls,Interrups},
+    xtick=data,
+    nodes near coords,
+    nodes near coords align={vertical},
+    ylabel={Cantidad},
+    title={\small Metricas -- Clock},
+    tick label style={font=\small},
+    enlarge x limits=0.25,
+]
+\addplot[fill=faultcol!70] coordinates {(Fallos,10) (Syscalls,10) (Interrups,10)};
+\addplot[fill=hitcol!70] coordinates {(Aciertos,3)};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+\end{minipage}
+
+\subsection{Evolucion de Fallos Acumulados}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    width=13cm, height=4.5cm,
+    xlabel={Referencia \#},
+    ylabel={Fallos acumulados},
+    title={\small Evolucion de Fallos -- Clock},
+    grid=major, grid style={dashed,gray!40},
+    tick label style={font=\small},
+    xmin=1, xmax=13,
+    ymin=0,
+]
+\addplot[color=faultcol, thick, mark=*, mark size=1.5pt]
+    coordinates { (1,1) (2,2) (3,3) (4,4) (5,4) (6,5) (7,6) (8,6) (9,6) (10,7) (11,8) (12,9) (13,10) };
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+\newpage
+\section{LFU -- Least Frequently Used}
+
+Reemplaza la pagina con menor frecuencia de acceso acumulada. Tiebreaker por orden FIFO. Favorece paginas de alta demanda historica.
+
+\subsection{Tabla de Reemplazo}
+\textbf{Cadena:} $\langle\;1\ 3\ 4\ 2\ 3\ 6\ 5\ 6\ 2\ 3\ 7\ 8\ 4\;\rangle$\quad\textbf{Marcos:} 4
+\medskip
+\begin{center}
+\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{|l|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|>{\centering\arraybackslash}p{0.4cm}|}
+\hline
+\textbf{Ref} & \cellcolor{faultcol!50}\textbf{1} & \cellcolor{faultcol!50}\textbf{3} & \cellcolor{faultcol!50}\textbf{4} & \cellcolor{faultcol!50}\textbf{2} & \cellcolor{hitcol!40}\textbf{3} & \cellcolor{faultcol!50}\textbf{6} & \cellcolor{faultcol!50}\textbf{5} & \cellcolor{hitcol!40}\textbf{6} & \cellcolor{hitcol!40}\textbf{2} & \cellcolor{hitcol!40}\textbf{3} & \cellcolor{faultcol!50}\textbf{7} & \cellcolor{faultcol!50}\textbf{8} & \cellcolor{faultcol!50}\textbf{4} \\
+\hline
+M0 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pB!40}1 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 & \cellcolor{pG!40}6 \\
+M1 & {\color{gray!60}--} & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 & \cellcolor{pD!40}3 \\
+M2 & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pE!40}4 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pF!40}5 & \cellcolor{pH!40}7 & \cellcolor{pI!40}8 & \cellcolor{pE!40}4 \\
+M3 & {\color{gray!60}--} & {\color{gray!60}--} & {\color{gray!60}--} & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 & \cellcolor{pC!40}2 \\
+\hline
+\textbf{F/H} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{faultcol}\textbf{F}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->1} & {\color{faultcol}\textbf{F}\tiny ->4} & {\color{hitcol}\textbf{H}} & {\color{hitcol}\textbf{H}} & {\color{hitcol}\textbf{H}} & {\color{faultcol}\textbf{F}\tiny ->5} & {\color{faultcol}\textbf{F}\tiny ->7} & {\color{faultcol}\textbf{F}\tiny ->8} \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Metricas}
+\begin{minipage}[t]{0.50\textwidth}
+\begin{center}
+\small
+\begin{tabular}{|l|r|}
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{1.\ Recursos Utilizados}} \\
+\hline
+  Marcos de pagina & 4 \\
+  Tamano de pagina & 4\,096 bytes (4 KB) \\
+  Memoria asignada & 16,384 B (16.0 KB) \\
+  Paginas unicas & 8 \\
+  Total referencias & 13 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{2.\ Tiempo de Ejecucion}} \\
+\hline
+  Tiempo (ns) & 36,100\,ns \\
+  Tiempo ($\mu$s) & 36.100\,$\mu$s \\
+  Tiempo (ms) & 0.036100\,ms \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{3.\ Llamadas al Sistema}} \\
+\hline
+  \texttt{handle\_page\_fault()} & \textcolor{faultcol}{\textbf{9}} \\
+  Tasa syscalls/ref. & 0.6923 \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{4.\ Interrupciones}} \\
+\hline
+  Interrupciones \#14 (PF x86) & \textcolor{faultcol}{\textbf{9}} \\
+  Aciertos (sin interrupcion) & \textcolor{hitcol}{\textbf{4}} \\
+\hline
+\multicolumn{2}{|c|}{\cellcolor{accentcol!30}\textbf{Resumen}} \\
+\hline
+  Fallos de pagina & \textcolor{faultcol}{\textbf{9}} \\
+  Aciertos de pagina & \textcolor{hitcol}{\textbf{4}} \\
+  Hit ratio & \textcolor{hitcol}{30.77%} \\
+  Fault ratio & \textcolor{faultcol}{69.23%} \\
+\hline
+\end{tabular}
+\end{center}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.46\textwidth}
+\vspace{0pt}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    ybar, bar width=16pt,
+    width=8cm, height=5cm,
+    symbolic x coords={Fallos,Aciertos,Syscalls,Interrups},
+    xtick=data,
+    nodes near coords,
+    nodes near coords align={vertical},
+    ylabel={Cantidad},
+    title={\small Metricas -- LFU},
+    tick label style={font=\small},
+    enlarge x limits=0.25,
+]
+\addplot[fill=faultcol!70] coordinates {(Fallos,9) (Syscalls,9) (Interrups,9)};
+\addplot[fill=hitcol!70] coordinates {(Aciertos,4)};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+\end{minipage}
+
+\subsection{Evolucion de Fallos Acumulados}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    width=13cm, height=4.5cm,
+    xlabel={Referencia \#},
+    ylabel={Fallos acumulados},
+    title={\small Evolucion de Fallos -- LFU},
+    grid=major, grid style={dashed,gray!40},
+    tick label style={font=\small},
+    xmin=1, xmax=13,
+    ymin=0,
+]
+\addplot[color=faultcol, thick, mark=*, mark size=1.5pt]
+    coordinates { (1,1) (2,2) (3,3) (4,4) (5,4) (6,5) (7,6) (8,6) (9,6) (10,6) (11,7) (12,8) (13,9) };
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+
+%% ============================================================
+\newpage
+\section{Comparacion General de Algoritmos}
+
+\subsection{Tabla comparativa de metricas}
+\begin{center}
+\small
+\begin{tabular}{|l|r|r|r|r|r|r|r|}
+\hline
+\rowcolor{accentcol!30}
+\textbf{Algoritmo} & \textbf{Fallos} & \textbf{Aciertos} & \textbf{Hit\,\%} & \textbf{Syscalls} & \textbf{Interrups.} & \textbf{Tiempo\,($\mu$s)} & \textbf{Mem.\,(KB)} \\
+\hline
+  FIFO & 10 & 3 & 23.08% & 10 & 10 & 31.700 & 16.0 \\
+  \hline
+  LRU & \cellcolor{hitcol!30}\textbf{9} & 4 & 30.77% & 9 & 9 & 27.600 & 16.0 \\
+  \hline
+  OPT & \cellcolor{hitcol!30}\textbf{9} & 4 & 30.77% & 9 & 9 & 30.700 & 16.0 \\
+  \hline
+  Clock & 10 & 3 & 23.08% & 10 & 10 & 25.200 & 16.0 \\
+  \hline
+  LFU & \cellcolor{hitcol!30}\textbf{9} & 4 & 30.77% & 9 & 9 & 36.100 & 16.0 \\
+  \hline
+\end{tabular}
+\end{center}
+
+\medskip
+\noindent
+Celdas \colorbox{hitcol!30}{verdes} indican el menor numero de fallos
+(mejor resultado) = \textbf{9 fallos} obtenido por
+\textbf{LRU, OPT, LFU}.
+
+\subsection{Grafica comparativa}
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    ybar, bar width=14pt,
+    width=13cm, height=6cm,
+    symbolic x coords={FIFO,LRU,OPT,Clock,LFU},
+    xtick=data,
+    legend style={at={(0.98,0.98)},anchor=north east,font=\small},
+    nodes near coords,
+    nodes near coords style={font=\tiny},
+    ylabel={Cantidad},
+    title={\textbf{Comparacion de Algoritmos: Fallos vs Aciertos}},
+    enlarge x limits=0.12,
+    tick label style={font=\small},
+]
+\addplot[fill=faultcol!80] coordinates { (FIFO,10) (LRU,9) (OPT,9) (Clock,10) (LFU,9) };
+\addplot[fill=hitcol!80]   coordinates { (FIFO,3) (LRU,4) (OPT,4) (Clock,3) (LFU,4) };
+\legend{Fallos, Aciertos}
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+%% ============================================================
+\newpage
+\section{Conclusiones}
+
+\begin{enumerate}
+  \item \textbf{OPT} es la cota teorica inferior: 9~fallos.
+        Ningun algoritmo online puede superar este valor para esta cadena.
+
+  \item \textbf{LRU, OPT y LFU} empataron con
+        \textcolor{hitcol}{\textbf{9~fallos}} y
+        hit-ratio del 30.77%,
+        superando a FIFO (10~fallos)
+        y Clock (10~fallos).
+
+  \item \textbf{FIFO} es el mas sencillo pero puede sufrir la
+        \textit{Anomalia de Belady}: aumentar los marcos puede
+        incrementar los fallos en ciertas cadenas.
+
+  \item \textbf{Clock} (Segunda Oportunidad) es la implementacion
+        practica mas extendida en sistemas reales
+        (\texttt{kswapd} en Linux, \texttt{vm\_pageout} en BSD).
+
+  \item \textbf{LFU} acumula frecuencias de uso; puede retener paginas
+        obsoletas que fueron muy accedidas en el pasado
+        (problema de ``cache fria'' tras un cambio de patron).
+
+  \item El tiempo de ejecucion de todos los algoritmos fue
+        $< 40\,\mu$s, lo que confirma la eficiencia computacional
+        de las implementaciones simuladas.
+
+  \item Con 4~marcos y esta cadena especifica, aumentar a 5~marcos
+        reduciria los fallos de OPT a su minimo absoluto.
+\end{enumerate}
+
+\bigskip
+\begin{center}
+\small\color{gray}
+Generado automaticamente por PaginacionMemoria \quad|\quad
+\url{https://github.com/lider-ch/algoritmos-de-reemplazo}
+\end{center}
+
+\end{document}
