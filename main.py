@@ -42,17 +42,13 @@ from algorithms import ALGORITHMS, ALGORITHMS as _ALGOS
 from core.simulator import run_single, run_all, generate_reference_string
 from core.metrics import display_metrics, build_comparison_table
 from ui.menu import (
-    show_banner, show_main_menu, ask_parameters, ask_git_action, about,
+    show_banner, show_main_menu, ask_parameters, about,
     ALGO_KEYS, console,
 )
 from ui.display import display_replacement_table
 from reports.graph import (
     plot_replacement_grid, plot_faults_over_time,
     plot_comparison, plot_hit_ratio_pie,
-)
-from reports.latex_builder import generate_report, compile_latex
-from git_integration.repo_manager import (
-    init_repo, commit_results, show_log, push_to_remote,
 )
 
 GRAPH_DIR  = os.path.join(PROJECT_ROOT, "output", "graphs")
@@ -249,12 +245,6 @@ def main() -> None:
             _action_compare_all()
 
         elif choice == "7":
-            _action_generate_report()
-
-        elif choice == "8":
-            _action_git()
-
-        elif choice == "9":
             about()
 
         # Pause before returning to menu

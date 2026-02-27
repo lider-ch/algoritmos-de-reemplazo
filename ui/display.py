@@ -85,7 +85,7 @@ def build_replacement_table(
     fh_row: list[str] = ["[bold]F/H[/bold]"]
     for step in steps:
         if step.is_fault:
-            victim_label = f"\n[dim]→{step.victim}[/dim]" if step.victim is not None else ""
+            victim_label = f"\n[dim]->{step.victim}[/dim]" if step.victim is not None else ""
             fh_row.append(f"[bold red]FALLO{victim_label}[/bold red]")
         else:
             fh_row.append("[bold green]HIT[/bold green]")
@@ -107,9 +107,9 @@ def display_replacement_table(result: SimulationResult, console: Console) -> Non
 
     console.print()
     legend = (
-        "[bold red]F[/bold red] = Fallo de página  "
+        "[bold red]F[/bold red] = Fallo de pagina  "
         "[bold green]H[/bold green] = Acierto  "
-        "[bold underline]X[/bold underline] = página cargada  "
-        "[dim]→V[/dim] = víctima desalojada"
+        "[bold underline]X[/bold underline] = pagina cargada  "
+        "[dim]->V[/dim] = victima desalojada"
     )
     console.print(Panel(legend, title="Leyenda", border_style="dim", expand=False))

@@ -47,9 +47,7 @@ def _algo_menu_table() -> Table:
     for i, key in enumerate(ALGO_KEYS, 1):
         tbl.add_row(f"[{i}]", ALGO_NAMES[key])
     tbl.add_row("[6]", "[bright_magenta]Comparar TODOS los algoritmos[/bright_magenta]")
-    tbl.add_row("[7]", "[bright_green]Generar reporte LaTeX + gráficas[/bright_green]")
-    tbl.add_row("[8]", "[bright_cyan]Gestión de repositorio Git[/bright_cyan]")
-    tbl.add_row("[9]", "[dim]Acerca del programa[/dim]")
+    tbl.add_row("[7]", "[dim]Acerca del programa[/dim]")
     tbl.add_row("[0]", "[red]Salir[/red]")
     return tbl
 
@@ -65,7 +63,7 @@ def show_main_menu() -> str:
     )
     choice = Prompt.ask(
         "[bold yellow]Seleccione una opción[/bold yellow]",
-        choices=["0","1","2","3","4","5","6","7","8","9"],
+        choices=["0","1","2","3","4","5","6","7"],
         show_choices=False,
     )
     return choice

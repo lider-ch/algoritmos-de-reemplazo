@@ -107,7 +107,7 @@ def build_comparison_table(results: list[SimulationResult]) -> Table:
 
     for r in results:
         fault_str = (
-            f"[bold green]{r.page_faults}★[/bold green]"
+            f"[bold green]{r.page_faults} <MEJOR>[/bold green]"
             if r.page_faults == best_faults
             else str(r.page_faults)
         )
